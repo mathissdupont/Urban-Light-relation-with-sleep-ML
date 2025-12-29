@@ -1,3 +1,25 @@
+"""src/models/train_baseline.py
+
+Bu script, nihai veri seti üzerinde iki temel (baseline) sınıflandırıcı eğitir ve metriklerini raporlar.
+
+Amaç
+- `final_model_dataset.csv` içinden feature/target seçip train/test split yapmak.
+- Baseline olarak:
+    1) Logistic Regression (ölçekleme + lineer model)
+    2) Random Forest (non-lineer, ağaç tabanlı model)
+- Accuracy, F1 ve ROC-AUC metriklerini yazdırmak.
+
+Girdi
+- data/processed/final_model_dataset.csv
+
+Çıktı
+- Konsola metrik tablosu + classification_report.
+
+Notlar
+- Logistic Regression için StandardScaler kullanılır.
+- `stratify=y` ile sınıf oranları train/test'te korunur.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,6 +42,10 @@ DATA_PATH = PROJECT_ROOT / "data" / "processed" / "final_model_dataset.csv"
 def main():
     df = pd.read_csv(DATA_PATH)
 
+    # Modelde kullanılan feature seti:
+    # - night_light_avg: VIIRS ortalama ışık
+    # - centroid_lat/lon: mekansal konum bilgisi (kabaca mahalle etkileri)
+    # - peak_hour: hücrede şikayetlerin en yoğun olduğu saat (yoksa -1)
     FEATURES = [
         "night_light_avg",
         "centroid_lat",
@@ -39,8 +65,9 @@ def main():
     )
 
     # -------------------
-    # Logistic Regression
+    # 1) Logistic Regression
     # -------------------
+    # Ölçekleme + lineer model pipeline'ı.
     logreg = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", LogisticRegression(max_iter=1000))
@@ -51,8 +78,9 @@ def main():
     y_prob_lr = logreg.predict_proba(X_test)[:, 1]
 
     # -------------------
-    # Random Forest
+    # 2) Random Forest
     # -------------------
+    # Ağaç tabanlı model ölçeklemeye ihtiyaç duymaz.
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=None,
@@ -65,8 +93,9 @@ def main():
     y_prob_rf = rf.predict_proba(X_test)[:, 1]
 
     # -------------------
-    # Evaluation
+    # Değerlendirme
     # -------------------
+    # ROC-AUC için sınıf olasılıklarını (predict_proba) kullanıyoruz.
     results = {
         "Model": ["LogisticRegression", "RandomForest"],
         "Accuracy": [

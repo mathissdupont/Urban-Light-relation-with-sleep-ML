@@ -1,3 +1,29 @@
+"""src/data/merge_datasets.py
+
+Bu script, model eğitiminde kullanılacak nihai tabloyu üretir.
+
+Amaç
+- 311 şikayet sayımları (grid_311_counts.csv) ile VIIRS gece ışığı özetlerini (grid_viirs_light.csv)
+    `cell_id` üzerinden birleştirmek.
+- Eksik değerleri temizlemek/doldurmak.
+- Sınıflandırma için hedef label üretmek: `high_noise_risk`.
+
+Girdiler
+- data/processed/grid_311_counts.csv
+- data/processed/grid_viirs_light.csv
+
+Çıktı
+- data/processed/final_model_dataset.csv
+
+Hedef (label) tanımı
+- `high_noise_risk = 1` : hücrenin `noise_night_count` değeri üst %20'lik dilimdeyse.
+    (80. persentil eşiği)
+
+Notlar
+- `night_light_avg` eksikse median ile doldurulur (VIIRS coverage / nodata etkilerini yumuşatmak için).
+- Ek olarak regresyon için kullanılabilecek `noise_night_count_log1p` kolonu da eklenir.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,24 +48,26 @@ def main():
     counts = pd.read_csv(IN_COUNTS)
     light = pd.read_csv(IN_LIGHT)
 
-    # Merge on cell_id
+    # `cell_id` ortak anahtar: 311 sayımları + ışık özetleri
     df = counts.merge(light, on="cell_id", how="left")
 
-    # Basic cleaning
+    # Tip dönüşümü / temel temizlik
     df["night_light_avg"] = pd.to_numeric(df["night_light_avg"], errors="coerce")
 
-    # Fill missing light with 0 (outside coverage) OR median.
-    # For VIIRS, missing usually means no data. We'll use median to be safer.
+    # Işık verisi eksikse doldurma stratejisi:
+    # - 0 ile doldurmak coverage dışını "karanlık" varsayar.
+    # - Median ile doldurmak daha muhafazakar bir yaklaşım (uç değer etkisini azaltır).
+    # Burada median kullanıyoruz.
     median_light = df["night_light_avg"].median(skipna=True)
     df["night_light_avg"] = df["night_light_avg"].fillna(median_light)
 
-    # Target engineering:
-    # We will create a binary "high_noise_risk" label using top 20% complaint counts.
-    # This avoids heavy imbalance and makes classification meaningful.
+    # Label üretimi:
+    # Üst %20'lik şikayet yoğunluğunu "yüksek risk" olarak işaretle.
+    # Böylece sınıf dengesizliği yönetilebilir seviyede kalır ve sınıflandırma anlamlı olur.
     q80 = df["noise_night_count"].quantile(0.80)
     df["high_noise_risk"] = (df["noise_night_count"] >= q80).astype(int)
 
-    # Also keep log-transformed count as a regression-friendly target (optional)
+    # Regresyon / görselleştirme için log(1+x) dönüşümü (sağa çarpıklığı azaltır)
     df["noise_night_count_log1p"] = np.log1p(df["noise_night_count"])
 
     # Save

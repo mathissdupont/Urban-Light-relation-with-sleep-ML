@@ -1,3 +1,18 @@
+"""src/analysis/plot_class_distribution.py
+
+Bu script, hedef label olan `high_noise_risk` sınıf dağılımını görselleştirir.
+
+Amaç
+- 0/1 sınıflarının kaç örneği olduğunu görmek.
+- Model değerlendirmesinde (özellikle accuracy) sınıf dengesizliği etkisini yorumlayabilmek.
+
+Girdi
+- data/processed/final_model_dataset.csv
+
+Çıktı
+- outputs/figures/class_distribution.png
+"""
+
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,6 +23,7 @@ OUT_PATH = PROJECT_ROOT / "outputs" / "figures" / "class_distribution.png"
 
 def main():
     df = pd.read_csv(DATA_PATH)
+    # 0 = düşük risk, 1 = yüksek risk
     counts = df["high_noise_risk"].value_counts().sort_index()
 
     plt.figure(figsize=(5,4))

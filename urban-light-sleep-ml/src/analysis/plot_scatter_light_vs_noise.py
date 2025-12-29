@@ -1,3 +1,18 @@
+"""src/analysis/plot_scatter_light_vs_noise.py
+
+Bu script, grid hücresi bazında gece ışığı ile gece şikayet yoğunluğu arasındaki ilişkiyi dağılım grafiğiyle gösterir.
+
+Amaç
+- X ekseni: `night_light_avg` (VIIRS ortalama radiance)
+- Y ekseni: `log(1 + noise_night_count)` (şikayet sayısı çok çarpık olduğu için log ölçek)
+
+Girdi
+- data/processed/final_model_dataset.csv
+
+Çıktı
+- outputs/figures/scatter_light_vs_noise.png
+"""
+
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -13,7 +28,7 @@ def main():
     x = df["night_light_avg"].astype(float)
     y = df["noise_night_count"].astype(float)
 
-    # log scale for y to reduce skew
+    # Y çok sağa çarpık olduğu için log(1+y) ile sıkıştırıyoruz.
     y_log = np.log1p(y)
 
     plt.figure(figsize=(7,5))

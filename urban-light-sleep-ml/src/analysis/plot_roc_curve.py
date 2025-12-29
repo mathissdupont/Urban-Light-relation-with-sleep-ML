@@ -1,3 +1,21 @@
+"""src/analysis/plot_roc_curve.py
+
+Bu script, baseline modellerin ROC eğrilerini tek grafikte karşılaştırır.
+
+Amaç
+- Logistic Regression ve Random Forest için `predict_proba` ile skor üretmek.
+- ROC curve (FPR vs TPR) çizmek ve AUC değerlerini legend'da göstermek.
+
+Girdi
+- data/processed/final_model_dataset.csv
+
+Çıktı
+- outputs/figures/roc_curve.png
+
+Not
+- `stratify=y` ile train/test sınıf oranı korunur.
+"""
+
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -25,7 +43,7 @@ def main():
         X, y, test_size=0.25, random_state=42, stratify=y
     )
 
-    # Logistic Regression
+    # 1) Logistic Regression (ölçekleme + lineer)
     lr = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", LogisticRegression(max_iter=1000))
@@ -35,14 +53,14 @@ def main():
     lr_auc = roc_auc_score(y_test, lr_prob)
     fpr_lr, tpr_lr, _ = roc_curve(y_test, lr_prob)
 
-    # Random Forest
+    # 2) Random Forest (ağaç tabanlı)
     rf = RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=-1)
     rf.fit(X_train, y_train)
     rf_prob = rf.predict_proba(X_test)[:, 1]
     rf_auc = roc_auc_score(y_test, rf_prob)
     fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_prob)
 
-    # Plot
+    # ROC plot: rastgele sınıflandırıcı referansı (diagonal)
     plt.figure(figsize=(7,5))
     plt.plot(fpr_lr, tpr_lr, label=f"Logistic Regression (AUC={lr_auc:.2f})")
     plt.plot(fpr_rf, tpr_rf, label=f"Random Forest (AUC={rf_auc:.2f})")

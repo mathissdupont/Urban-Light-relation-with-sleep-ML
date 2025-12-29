@@ -1,3 +1,27 @@
+"""src/data/create_grid.py
+
+Bu script, tüm projenin ortak mekansal referansı olan ızgara (grid) katmanını üretir.
+
+Amaç
+- NYC borough sınırlarını (GeoJSON) okuyup tek bir şehir sınırı poligonuna indirgemek.
+- Bu sınırın bounding box'ı üzerinde metre cinsinden düzenli kare hücrelerden oluşan bir fishnet grid üretmek.
+- Grid'i NYC sınırına göre clip'lemek (şehir dışındaki hücreleri atmak).
+- Her hücreye benzersiz `cell_id` vermek ve centroid (lat/lon) gibi modelde kullanılabilecek yardımcı kolonları eklemek.
+
+Girdi
+- data/raw/new-york-city-boroughs.geojson
+
+Çıktı
+- data/processed/grid_cells.geojson
+
+Notlar
+- Grid boyutu `GRID_SIZE_M = 500` metre. Bu, VIIRS gece ışığı raster çözünürlüğüyle uyumlu olacak şekilde seçildi.
+- Mesafe/alan hesapları için metre tabanlı CRS kullanılır: `EPSG:32618` (UTM Zone 18N).
+
+Çalıştırma
+- Proje kökünden: `python -m src.data.create_grid` veya doğrudan dosyayı çalıştır.
+"""
+
 from __future__ import annotations
 
 import math
@@ -63,34 +87,39 @@ def main():
     print(f"Reading boroughs: {BOROUGHS_GEOJSON}")
     boroughs = gpd.read_file(BOROUGHS_GEOJSON)
 
-    # Ensure valid geometry
+    # Geometri temizliği:
+    # - null geometry satırlarını at
+    # - `buffer(0)` ile self-intersection gibi ufak topo hatalarını düzeltmeye çalış
     boroughs = boroughs[boroughs.geometry.notnull()].copy()
     boroughs["geometry"] = boroughs["geometry"].buffer(0)
 
-    # Reproject to metric CRS
+    # Metre tabanlı CRS'e projeksiyon (grid üretimi ve alan hesabı için gerekli)
     boroughs_m = boroughs.to_crs(METRIC_CRS)
 
-    # Union all borough polygons (NYC boundary)
+    # Borough poligonlarını tek bir şehir sınırı poligonunda birleştir
     nyc_union = boroughs_m.unary_union
     nyc_bounds = nyc_union.bounds
 
+    # Bounding box üzerinde düzenli kare grid üret
     print("Creating fishnet grid...")
     grid = create_fishnet(nyc_bounds, GRID_SIZE_M)
 
-    # Clip grid to NYC boundary
+    # Grid'i şehir sınırına göre clip'le (şehir dışındaki hücreleri kırp/at)
     print("Clipping grid to NYC boundary...")
     grid_clipped = gpd.clip(grid, nyc_union)
 
-    # Remove tiny slivers (optional) - keep only cells with meaningful area
+    # Çok küçük sliver parçalarını at (clip sonrası kalan çok küçük parçalar gürültü yaratabilir)
     grid_clipped["area_m2"] = grid_clipped.geometry.area
     grid_clipped = grid_clipped[grid_clipped["area_m2"] >= (GRID_SIZE_M * GRID_SIZE_M * 0.20)].copy()
 
-    # Add centroid lat/lon for easy joins/debugging later
+    # Centroid'leri ekle:
+    # - metre CRS'te centroid_x/centroid_y (debug/hesap)
+    # - WGS84 centroid_lat/centroid_lon (harita ve model feature'ları için pratik)
     centroids = grid_clipped.geometry.centroid
     grid_clipped["centroid_x"] = centroids.x
     grid_clipped["centroid_y"] = centroids.y
 
-    # Also store WGS84 centroids (lat/lon)
+    # WGS84 (EPSG:4326) lat/lon centroid'leri
     grid_wgs84 = grid_clipped.to_crs("EPSG:4326")
     centroids_wgs = grid_wgs84.geometry.centroid
     grid_clipped["centroid_lon"] = centroids_wgs.x

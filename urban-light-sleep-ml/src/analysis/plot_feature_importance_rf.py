@@ -1,3 +1,22 @@
+"""src/analysis/plot_feature_importance_rf.py
+
+Bu script, Random Forest modelinin feature importance değerlerini görselleştirir.
+
+Amaç
+- Aynı feature setiyle RandomForest eğitmek.
+- `feature_importances_` değerlerini sıralayıp bar chart çizmek.
+
+Girdi
+- data/processed/final_model_dataset.csv
+
+Çıktı
+- outputs/figures/rf_feature_importance.png
+
+Not
+- Feature importance, ağaçlarda kullanılan split kazançlarından türetilen göreli bir ölçüdür.
+    Nedensellik iddiası değildir; sadece modelin hangi feature'ı daha çok kullandığını gösterir.
+"""
+
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -21,9 +40,11 @@ def main():
         X, y, test_size=0.25, random_state=42, stratify=y
     )
 
+    # Random Forest eğitimi
     rf = RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=-1)
     rf.fit(X_train, y_train)
 
+    # Feature importance -> büyükten küçüğe sırala
     importances = rf.feature_importances_
     pairs = sorted(zip(FEATURES, importances), key=lambda x: x[1], reverse=True)
     labels = [p[0] for p in pairs]

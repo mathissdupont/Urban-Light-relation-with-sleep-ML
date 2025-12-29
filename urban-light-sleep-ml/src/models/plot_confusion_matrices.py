@@ -1,3 +1,22 @@
+"""src/models/plot_confusion_matrices.py
+
+Bu script, baseline modeller için confusion matrix görsellerini üretir.
+
+Amaç
+- Train/test split sonrası Logistic Regression ve Random Forest tahminleri almak.
+- Confusion matrix'i seaborn heatmap olarak çizip PNG kaydetmek.
+
+Girdi
+- data/processed/final_model_dataset.csv
+
+Çıktı
+- outputs/figures/confusion_matrices/cm_logistic_regression.png
+- outputs/figures/confusion_matrices/cm_random_forest.png
+
+Not
+- Confusion matrix: satırlar gerçek sınıf, sütunlar tahmin edilen sınıf.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,6 +46,7 @@ TARGET = "high_noise_risk"
 
 
 def plot_cm(y_true, y_pred, title, filename):
+    # Confusion matrix hesapla ve okunabilir bir heatmap olarak kaydet
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(4, 3))
     sns.heatmap(
@@ -58,7 +78,7 @@ def main():
         stratify=y
     )
 
-    # Logistic Regression
+    # 1) Logistic Regression (ölçekleme + lineer model)
     logreg = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", LogisticRegression(max_iter=1000))
@@ -73,7 +93,7 @@ def main():
         FIG_DIR / "cm_logistic_regression.png"
     )
 
-    # Random Forest
+    # 2) Random Forest (ağaç tabanlı)
     rf = RandomForestClassifier(
         n_estimators=300,
         random_state=42,

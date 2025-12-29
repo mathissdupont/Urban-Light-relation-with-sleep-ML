@@ -1,3 +1,28 @@
+"""src/visualization/dashboard_app.py
+
+Bu dosya, Streamlit + Folium kullanarak etkileşimli bir risk haritası dashboard'u oluşturur.
+
+Amaç
+- `final_model_dataset.csv` içindeki feature/label'ları, `grid_cells.geojson` geometrileriyle birleştirmek.
+- Kullanıcıya filtreleme imkanı vermek:
+    - sadece yüksek risk hücreleri
+    - ışık yoğunluğu (night_light_avg) aralığı
+- Harita üzerinde her grid hücresini centroid noktasında nokta olarak göstermek:
+    - kırmızı: high_noise_risk = 1
+    - yeşil: high_noise_risk = 0
+
+Girdiler
+- data/processed/final_model_dataset.csv
+- data/processed/grid_cells.geojson
+
+Çalıştırma
+- Proje kökünde: `streamlit run src/visualization/dashboard_app.py`
+
+Not
+- Folium harita lat/lon beklediği için grid WGS84'e (EPSG:4326) dönüştürülür.
+- Merge sonrası bazı hücrelerde NaN olabilir (ör. veri eksikliği); popup alanları güvenli şekilde doldurulur.
+"""
+
 import pandas as pd
 import geopandas as gpd
 import streamlit as st
@@ -16,26 +41,27 @@ st.title("NYC Nighttime Noise Risk Dashboard (Light + 311 + ML)")
 df = pd.read_csv(DATA_PATH)
 grid = gpd.read_file(GRID_PATH)
 
-# Grid'i WGS84'e al (harita lat/lon ister)
+# Grid'i WGS84'e al (Folium haritası lat/lon ister)
 if grid.crs is None:
     st.error("Grid CRS bulunamadı. grid_cells.geojson CRS içermiyor olabilir.")
     st.stop()
 
 grid_wgs = grid.to_crs("EPSG:4326")
 
-# Centroid'i geometry'den hesapla (kolona bağımlı değil)
+# Centroid'i geometry'den hesapla (grid dosyasında centroid kolonları olsa bile,
+# burada bağımsız ve garanti bir yöntem olarak geometry'den üretip kullanıyoruz)
 centroids = grid_wgs.geometry.centroid
 grid_wgs["lat"] = centroids.y
 grid_wgs["lon"] = centroids.x
 
-# Merge (cell_id ortak anahtar)
+# Merge (cell_id ortak anahtar): geometri + model tablosu aynı satırda birleşir
 gdf = grid_wgs.merge(df, on="cell_id", how="left")
 
-# Sidebar filtreleri
+# Sidebar filtreleri: haritayı daraltarak okunabilirliği artırır
 st.sidebar.header("Filtreler")
 show_only_high = st.sidebar.checkbox("Sadece yüksek risk (1) göster", value=False)
 
-# Opsiyonel: ışık yoğunluğuna göre filtre
+# Opsiyonel: ışık yoğunluğuna göre filtre (min/max değerleri dataset'ten gelir)
 min_light, max_light = float(gdf["night_light_avg"].min()), float(gdf["night_light_avg"].max())
 light_range = st.sidebar.slider("Night light avg aralığı", min_light, max_light, (min_light, max_light))
 
@@ -44,10 +70,10 @@ gdf = gdf[(gdf["night_light_avg"] >= light_range[0]) & (gdf["night_light_avg"] <
 if show_only_high:
     gdf = gdf[gdf["high_noise_risk"] == 1]
 
-# Harita
+# Harita tabanı
 m = folium.Map(location=[40.73, -73.94], zoom_start=11, tiles="cartodbpositron")
 
-# Noktaları çiz
+# Noktaları çiz: centroid noktasında küçük marker'lar
 for _, row in gdf.iterrows():
     # bazı hücrelerde df merge sonrası NaN olabilir, güvenli geçelim
     risk = int(row["high_noise_risk"]) if pd.notna(row["high_noise_risk"]) else 0
