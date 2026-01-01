@@ -1,19 +1,19 @@
 """src/analysis/plot_roc_curve.py
 
-Bu script, baseline modellerin ROC eğrilerini tek grafikte karşılaştırır.
+Compare ROC curves for baseline models in a single figure.
 
-Amaç
-- Logistic Regression ve Random Forest için `predict_proba` ile skor üretmek.
-- ROC curve (FPR vs TPR) çizmek ve AUC değerlerini legend'da göstermek.
+Goal
+- Train Logistic Regression and Random Forest and produce probability scores via `predict_proba`.
+- Plot ROC curves (FPR vs TPR) and display AUC values in the legend.
 
-Girdi
+Input
 - data/processed/final_model_dataset.csv
 
-Çıktı
+Output
 - outputs/figures/roc_curve.png
 
-Not
-- `stratify=y` ile train/test sınıf oranı korunur.
+Note
+- `stratify=y` preserves the class ratio in train/test.
 """
 
 from pathlib import Path

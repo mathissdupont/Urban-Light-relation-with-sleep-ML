@@ -1,23 +1,23 @@
 """src/models/train_baseline.py
 
-Bu script, nihai veri seti üzerinde iki temel (baseline) sınıflandırıcı eğitir ve metriklerini raporlar.
+Train and evaluate baseline classifiers on the final tabular dataset.
 
-Amaç
-- `final_model_dataset.csv` içinden feature/target seçip train/test split yapmak.
-- Baseline olarak:
-    1) Logistic Regression (ölçekleme + lineer model)
-    2) Random Forest (non-lineer, ağaç tabanlı model)
-- Accuracy, F1 ve ROC-AUC metriklerini yazdırmak.
+Goal
+- Load `final_model_dataset.csv`, select features/target, and perform a stratified train/test split.
+- Train two baseline models:
+    1) Logistic Regression (with StandardScaler)
+    2) Random Forest
+- Print basic metrics to the console.
 
-Girdi
+Input
 - data/processed/final_model_dataset.csv
 
-Çıktı
-- Konsola metrik tablosu + classification_report.
+Output
+- Console metrics table + classification_report.
 
-Notlar
-- Logistic Regression için StandardScaler kullanılır.
-- `stratify=y` ile sınıf oranları train/test'te korunur.
+Notes
+- StandardScaler is used for Logistic Regression.
+- `stratify=y` preserves the class ratio in train/test.
 """
 
 from __future__ import annotations
